@@ -18,4 +18,4 @@ grades.o: grades.c grades.h
 
 # Custom rule - we can invoke it manually by running "make clean"
 clean:
-	rm -f *.o *.so
+	rm -f *.o libgrades.so
