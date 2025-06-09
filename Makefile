@@ -7,7 +7,7 @@ OBJS = grades.o
 all: libgrades.so
 
 libgrades.so: $(OBJS)
-	$(CLINK) -shared $(OBJS) -o libgrades.so liblinked-list.so
+	$(CLINK) -shared $(OBJS) -o libgrades.so -L. -llinked-list
 
 # Full syntax for building grades.o
 grades.o: grades.c grades.h 
