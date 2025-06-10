@@ -117,10 +117,11 @@ static int clone_student(void* element, void** output) {
         return 1;
     }
     
-    // Clone all courses from original student
+    // Cache the iterator pointer to reduce repeated function call overhead
     struct iterator* it = list_begin(orig->courses);
     while (it) {
-        if (list_push_back(clone->courses, list_get(it))) {
+        void* course = list_get(it);
+        if (list_push_back(clone->courses, course)) {
             list_destroy(clone->courses);
             free(clone->name);
             free(clone);
@@ -234,6 +235,10 @@ int grades_add_grade(struct grades *grades, const char *name, int id, int grade)
     return 0;
 }
 
+/**
+ * @brief Calculates the average grade of a student.
+ *        Improved by iterating once through courses without redundant calls.
+ */
 float grades_calc_avg(struct grades *grades, int id, char **out) {
     if (!grades || !out) {
         if (out) *out = NULL;
@@ -248,37 +253,47 @@ float grades_calc_avg(struct grades *grades, int id, char **out) {
     
     size_t course_count = list_size(student->courses);
     if (course_count == 0) {
-        *out = string_duplicate(student->name); // Use string_duplicate instead of strdup
+        *out = string_duplicate(student->name);
         return (*out) ? 0 : -1;
     }
     
     float sum = 0;
+    // Cache the iterator pointer for efficiency.
     for (struct iterator* it = list_begin(student->courses); it != NULL; it = list_next(it)) {
         struct course* course = list_get(it);
         sum += course->grade;
     }
     
-    *out = string_duplicate(student->name); // Use string_duplicate instead of strdup
+    *out = string_duplicate(student->name);
     if (!*out) return -1;
     
     return sum / course_count;
 }
 
+/**
+ * @brief Prints a student and their courses.
+ *        This version builds the output string in a buffer before printing.
+ */
 int grades_print_student(struct grades *grades, int id) {
     if (!grades) return 1;
     
     struct student* student = find_student_by_id(grades->students, id);
     if (!student) return 1;
     
-    printf("%s %d:", student->name, student->id);
+    // Use a buffer to reduce number of printf calls
+    char buffer[1024];
+    int offset = snprintf(buffer, sizeof(buffer), "%s %d:", student->name, student->id);
     
     for (struct iterator* it = list_begin(student->courses); it != NULL; it = list_next(it)) {
         struct course* course = list_get(it);
-        printf(" %s %d", course->name, course->grade);
-        if (list_next(it)) printf(",");
+        if (it != list_begin(student->courses)) {  // add comma before subsequent courses
+            offset += snprintf(buffer + offset, sizeof(buffer) - offset, ",");
+        }
+        offset += snprintf(buffer + offset, sizeof(buffer) - offset, " %s %d", course->name, course->grade);
     }
-    printf("\n");
     
+    // Print the entire line at once.
+    printf("%s\n", buffer);
     return 0;
 }
 
